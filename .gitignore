@@ -1,0 +1,6 @@
+.fsymapi/**
+*.pdb
+*.dll
+*.pd_
+*.pyc
+*.db
