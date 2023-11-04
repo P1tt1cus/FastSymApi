@@ -78,8 +78,26 @@ def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
             else:
                 pdbfile_handle = gzip.open(pdb_tmp_file_path, 'wb')
 
-            # Write the data to disk
-            pdb_size = int(resp.headers["Content-Length"])
+            # Get the size of the PDB buffer being downloaded
+            if resp.headers.get("Content-Length"):
+                pdb_size = int(resp.headers["Content-Length"])
+            elif resp.headers.get("x-goog-stored-content-length"):
+                pdb_size = int(resp.headers["x-goog-stored-content-length"])
+            else:
+                # Output an error stating the content-length could not be found.
+                content_len_error = (
+                        "Could not get content length for symbol: "
+                        + click.style(symbol_url, bold=True)
+                        + " "
+                        + click.style(resp.status_code, bold=True)
+                )
+                logger.error(content_len_error)
+
+                # Set the PDB entry to no longer downloading 
+                pdbentry.downloading = False
+                crud.modify_pdb_entry(db, pdbentry)
+                return
+
             downloaded = 0
             percent = 0
             while downloaded < pdb_size:
