@@ -202,7 +202,7 @@ def get_symbol(pdbname: str, pdbfile: str, guid: str, background_tasks: Backgrou
 @sym.get("/{pdbname}/{guid}/{pdbfile}")
 @sym.get("/download/symbols/{pdbname}/{guid}/{pdbfile}")
 async def get_symbol_api(pdbname: str, guid: str, pdbfile: str, request: Request, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
-    """ Request Symbol API  """
+    """ Returns a PDB file, or attempts starts a background task to download it.  """
 
     # Check whether GZIP encoding is accepted
     accept_encoding = request.headers.get("Accept-Encoding", "")
@@ -231,7 +231,7 @@ def fastsym_init():
     downloads = crud.find_still_downloading(db)
     for download in downloads:
         failed_tmp_download = os.path.join(
-            SYMBOL_PATH, download.pdbname, download.guid, "tmp_"+download.pdbfile+".gzip")
+                SYMBOL_PATH, download.pdbname, download.guid, "tmp_"+download.pdbfile+".gzip")
         if os.path.exists(failed_tmp_download):
             os.remove(failed_tmp_download)
         download.downloading = False
