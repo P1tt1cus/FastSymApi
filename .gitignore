@@ -4,3 +4,4 @@
 *.pd_
 *.pyc
 *.db
+.fsa
