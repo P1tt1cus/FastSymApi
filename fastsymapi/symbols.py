@@ -86,7 +86,7 @@ def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
             else:
                 # Output an error stating the content-length could not be found.
                 content_len_error = (
-                        "Could not get content length for symbol: "
+                        "Could not get content length from server: "
                         + click.style(symbol_url, bold=True)
                         + " "
                         + click.style(resp.status_code, bold=True)
