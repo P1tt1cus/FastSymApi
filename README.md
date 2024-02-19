@@ -1,4 +1,4 @@
-# FastSymApi v1.0
+# FastSymApi v1.1
 
 The FastSymApi server is a Fast API server designed for debugging and development environments. It allows users to download and cache symbols from Microsoft, Google, and Mozilla symbol servers. Additionally, users can easily add support for other symbol servers.
 

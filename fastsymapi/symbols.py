@@ -25,20 +25,17 @@ SYM_URLS = [
 ]
 
 
-def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
+def download_symbol(pdbentry: models.SymbolEntry, db: Session) -> None:
     """ Iterate over SYM_URLs looking for the requested PDB file """
 
     # If the content-encoding flag is found, switch this to true
     is_gzip_supported = False
 
-    # Retrieve the PDB entry
-    pdbentry = crud.find_pdb_entry(db, guid, pdbfile)
-
     # Iterate over the symbol server URLs
     for sym_url in SYM_URLS:
 
         # Check if symbol exists on the server
-        symbol_url = sym_url + f"/{pdbname}/{guid}/{pdbfile}"
+        symbol_url = sym_url + f"/{pdbentry.pdbname}/{pdbentry.guid}/{pdbentry.pdbfile}"
         resp = requests.get(
             symbol_url, stream=True)
 
@@ -51,14 +48,14 @@ def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
             # Notify that the download is beginning
             downloading_msg = (
                 "Downloading... "
-                + click.style(guid, bold=True)
+                + click.style(pdbentry.guid, bold=True)
                 + " "
-                + click.style(pdbfile, bold=True)
+                + click.style(pdbentry.pdbfile, bold=True)
             )
             logger.warning(downloading_msg)
 
             # Create the PDB directory with GUID if it does not exist
-            pdb_file_path = os.path.join(SYMBOL_PATH, pdbname, guid)
+            pdb_file_path = os.path.join(SYMBOL_PATH, pdbentry.pdbname, pdbentry.guid)
             if not os.path.exists(pdb_file_path):
                 os.makedirs(pdb_file_path)
 
@@ -68,7 +65,7 @@ def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
 
             # Create the PDB file and iterate over it writing the chunks
             pdb_tmp_file_path = os.path.join(
-                pdb_file_path, "tmp_"+pdbfile+".gzip")
+                pdb_file_path, "tmp_"+pdbentry.pdbfile+".gzip")
 
             # if the file is already compressed, just write the raw bytes
             if is_gzip_supported:
@@ -78,8 +75,26 @@ def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
             else:
                 pdbfile_handle = gzip.open(pdb_tmp_file_path, 'wb')
 
-            # Write the data to disk
-            pdb_size = int(resp.headers["Content-Length"])
+            # Get the size of the PDB buffer being downloaded
+            if resp.headers.get("Content-Length"):
+                pdb_size = int(resp.headers["Content-Length"])
+            elif resp.headers.get("x-goog-stored-content-length"):
+                pdb_size = int(resp.headers["x-goog-stored-content-length"])
+            else:
+                # Output an error stating the content-length could not be found.
+                content_len_error = (
+                        "Could not get content length from server: "
+                        + click.style(symbol_url, bold=True)
+                        + " "
+                        + click.style(resp.status_code, bold=True)
+                )
+                logger.error(content_len_error)
+
+                # Set the PDB entry to no longer downloading 
+                pdbentry.downloading = False
+                crud.modify_pdb_entry(db, pdbentry)
+                return
+
             downloaded = 0
             percent = 0
             while downloaded < pdb_size:
@@ -91,9 +106,9 @@ def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
                 if percent % 5 == 0:
                     percentage_msg = (
                         "Downloading... "
-                        + click.style(guid, bold=True)
+                        + click.style(pdbentry.guid, bold=True)
                         + " "
-                        + click.style(pdbfile, bold=True)
+                        + click.style(pdbentry.pdbfile, bold=True)
                         + " "
                         + click.style(str(percent)+"%", reverse=True)
                     )
@@ -105,14 +120,14 @@ def download_symbol(pdbname: str, pdbfile: str, guid: str, db: Session) -> None:
             # Finished downloading PDB
             success_msg = (
                 "Successfully downloaded... "
-                + click.style(guid, bold=True)
+                + click.style(pdbentry.guid, bold=True)
                 + " "
-                + click.style(pdbfile, bold=True)
+                + click.style(pdbentry.pdbfile, bold=True)
             )
             logger.info(success_msg)
 
             # If the file is already a gzip, there is no need to compress it
-            pdb_file_path = os.path.join(pdb_file_path, pdbfile+".gzip")
+            pdb_file_path = os.path.join(pdb_file_path, pdbentry.pdbfile+".gzip")
             shutil.move(pdb_tmp_file_path, pdb_file_path)
             break
 
@@ -169,7 +184,7 @@ def get_symbol(pdbname: str, pdbfile: str, guid: str, background_tasks: Backgrou
         crud.modify_pdb_entry(db, pdbentry)
 
         # Kick off a background task to download the symbol
-        background_tasks.add_task(download_symbol, pdbname, pdbfile, guid, db)
+        background_tasks.add_task(download_symbol, pdbentry, db)
 
         # 404, there is no PDB to return but it will be downloaded shortly
         return Response(status_code=404)
