@@ -42,6 +42,12 @@ Debug Mode
 uvicorn fastsymapi:app --reload 
 ```
 
+## Run Tests 
+
+```
+pytest fastsymapi_tests.py
+```
+
 ## Configure x64dbg
 
 **options** >> **preferences** >> **misc**
