@@ -1,4 +1,4 @@
-name: FastSymApi CI 
+name: FastSymApi CI
 
 on: push
 
@@ -18,4 +18,62 @@ jobs:
     - name: Run tests
       run: |
         pytest fastsymapi_tests.py
+    - name: Build project
+      run: |
+        python setup.py sdist bdist_wheel
+    - name: Extract version
+      id: extract_version
+      run: |
+        echo "VERSION=$(python setup.py --version)" >> $GITHUB_ENV
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.12
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Build project
+      run: |
+        python setup.py sdist bdist_wheel
+    - name: Check if Tag Exists
+      id: check_tag
+      run: |
+        if git rev-parse "v${{ env.VERSION }}" >/dev/null 2>&1; then
+          echo "TAG_EXISTS=true" >> $GITHUB_ENV
+        else
+          echo "TAG_EXISTS=false" >> $GITHUB_ENV
+        fi
+    - name: Create Tag
+      if: env.TAG_EXISTS == 'false'
+      run: |
+        git config --global user.email "30161177+P1tt1cus@users.noreply.github.com"
+        git config --global user.name "P1tt1cus"
+        git tag v${{ env.VERSION }}
+        git push origin v${{ env.VERSION }}
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.VERSION }}
+        release_name: Release v${{ env.VERSION }}
+        draft: false
+        prerelease: false
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./dist/*
+        asset_name: fastsymapi-v${{ env.VERSION }}.tar.gz
+        asset_content_type: application/gzip
 
