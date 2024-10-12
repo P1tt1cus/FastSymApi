@@ -24,9 +24,21 @@ jobs:
     - name: Build project
       run: |
         python setup.py bdist_wheel
-    - name: Run 
+    - name: Start Application
       run: |
-        uvicorn fastsymapi:app
+          nohup uvicorn fastsymapi:app --host 0.0.0.0 --port 8000 &
+      timeout-minutes: 1
+    - name: Health Check
+      run: |
+        for i in {1..10}; do
+          if curl -s http://localhost:8000/health | grep "ok"; then
+            echo "Application started successfully"
+            exit 0
+          fi
+          sleep 3
+        done
+        echo "Application failed to start"
+        exit 1
 
   release:
     needs: build
@@ -82,4 +94,3 @@ jobs:
         asset_path: ./dist/*
         asset_name: fastsymapi-v${{ env.VERSION }}.tar.gz
         asset_content_type: application/gzip
-
