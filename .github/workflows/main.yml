@@ -24,10 +24,9 @@ jobs:
     - name: Build project
       run: |
         python setup.py bdist_wheel
-    - name: Extract version
-      id: extract_version
+    - name: Run 
       run: |
-        echo "VERSION=$(python setup.py --version)" >> $GITHUB_ENV
+        uvicorn fastsymapi:app
 
   release:
     needs: build
@@ -45,6 +44,10 @@ jobs:
     - name: Build project
       run: |
         python setup.py sdist bdist_wheel
+    - name: Extract version
+      id: extract_version
+      run: |
+        echo "VERSION=$(python setup.py --version)" >> $GITHUB_ENV
     - name: Check if Tag Exists
       id: check_tag
       run: |
