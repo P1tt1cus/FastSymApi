@@ -40,7 +40,7 @@ jobs:
         echo "Application failed to start"
         exit 1
   release:
-    if: gitub.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     steps:
