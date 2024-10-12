@@ -40,6 +40,7 @@ jobs:
         echo "Application failed to start"
         exit 1
   release:
+    if: gitub.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -76,6 +77,7 @@ jobs:
         git tag v${{ env.VERSION }}
         git push origin v${{ env.VERSION }}
     - name: Create GitHub Release
+      if: ${{ env.TAG_EXISTS == false }}
       id: create_release
       uses: actions/create-release@v1
       env:
