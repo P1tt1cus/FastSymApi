@@ -1,0 +1,97 @@
+name: FastSymApi CI
+
+on: 
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
+permissions:
+  contents: write  # Grant write permissions to the contents
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.12
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Run tests
+      run: |
+        pytest fastsymapi_tests.py
+    - name: Build project
+      run: |
+        python setup.py bdist_wheel
+    - name: Start Application
+      run: |
+          nohup uvicorn fastsymapi:app --host 0.0.0.0 --port 8000 &
+      timeout-minutes: 1
+    - name: Health Check
+      run: |
+        for i in {1..10}; do
+          if curl -s http://localhost:8000/health | grep "ok"; then
+            echo "Application started successfully"
+            exit 0
+          fi
+          sleep 3
+        done
+        echo "Application failed to start"
+        exit 1
+  release:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.12
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Build project
+      run: |
+        python setup.py bdist_wheel
+    - name: Extract version
+      id: extract_version
+      run: |
+        echo "VERSION=$(python setup.py --version)" >> $GITHUB_ENV
+    - name: Check if Tag Exists
+      id: check_tag
+      run: |
+        if git rev-parse "v${{ env.VERSION }}" >/dev/null 2>&1; then
+          echo "TAG_EXISTS=true" >> $GITHUB_ENV
+        else
+          echo "TAG_EXISTS=false" >> $GITHUB_ENV
+        fi
+    - name: Create Tag
+      if: ${{ env.TAG_EXISTS == false }}
+      continue-on-error: true
+      run: |
+        git config --global user.email "30161177+P1tt1cus@users.noreply.github.com"
+        git config --global user.name "P1tt1cus"
+        git tag v${{ env.VERSION }}
+        git push origin v${{ env.VERSION }}
+    - name: Create GitHub Release
+      if: ${{ env.TAG_EXISTS == false }}
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ env.VERSION }}
+        release_name: Release v${{ env.VERSION }}
+        draft: false
+        prerelease: false
