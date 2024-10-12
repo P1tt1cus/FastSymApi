@@ -1,6 +1,14 @@
 name: FastSymApi CI
 
-on: push
+on: 
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
 
 permissions:
   contents: write  # Grant write permissions to the contents
