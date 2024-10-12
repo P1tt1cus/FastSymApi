@@ -2,6 +2,9 @@ name: FastSymApi CI
 
 on: push
 
+permissions:
+  contents: write  # Grant write permissions to the contents
+
 jobs:
   build:
     runs-on: ubuntu-latest
