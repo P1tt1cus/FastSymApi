@@ -39,7 +39,6 @@ jobs:
         done
         echo "Application failed to start"
         exit 1
-
   release:
     needs: build
     runs-on: ubuntu-latest
