@@ -7,3 +7,5 @@
 .fsa
 .fastsymapi
 .fapi
+fastsymapi.egg-info
+dist

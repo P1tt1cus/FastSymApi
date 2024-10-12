@@ -23,7 +23,7 @@ jobs:
         pytest fastsymapi_tests.py
     - name: Build project
       run: |
-        python setup.py sdist bdist_wheel
+        python setup.py bdist_wheel
     - name: Extract version
       id: extract_version
       run: |
