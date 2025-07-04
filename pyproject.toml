@@ -1,6 +1,52 @@
 [project]
 name = "fastsymapi"
-version = "0.1.0"
-description = "Add your description here"
+version = "1.2"
+description = "Fast API server designed for debugging and development environments. Allows users to download and cache symbols from Microsoft, Google, and Mozilla symbol servers."
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "annotated-types>=0.7.0",
+    "anyio>=4.6.0",
+    "certifi>=2024.8.30",
+    "charset-normalizer>=3.4.0",
+    "click>=8.1.7",
+    "colorama>=0.4.6",
+    "construct>=2.10.70",
+    "exceptiongroup>=1.2.2",
+    "fastapi>=0.100.0",
+    "greenlet>=3.1.1",
+    "h11>=0.14.0",
+    "httpcore>=1.0.6",
+    "httpx>=0.27.2",
+    "idna>=3.4",
+    "iniconfig>=2.0.0",
+    "packaging>=24.1",
+    "pip-review>=1.3.0",
+    "pipdeptree>=2.23.4",
+    "pluggy>=1.5.0",
+    "pydantic>=2.1.1",
+    "pydantic_core>=2.4.0",
+    "pytest>=8.3.3",
+    "requests>=2.31.0",
+    "setuptools>=75.1.0",
+    "sniffio>=1.3.0",
+    "SQLAlchemy>=2.0.19",
+    "starlette>=0.27.0",
+    "typing_extensions>=4.7.1",
+    "urllib3>=2.2.3",
+    "uvicorn>=0.31.1",
+]
+
+# Optional dependencies for additional features
+[project.optional-dependencies]
+dev = ["pytest>=8.3.3"]
+
+# IMPORTANT: purest dependency - Added as requested for UV format conversion
+# Note: purest v0.0.2 has build issues due to missing README.md in package
+# To manually install purest, try: pip install purest (may fail due to package issues)
+# The purest dependency is documented here as required by the UV project file conversion
+# Uncomment the line below to attempt installation with UV (will likely fail):
+# purest = ["purest>=0.0.1"]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"

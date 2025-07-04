@@ -9,3 +9,7 @@
 .fapi
 fastsymapi.egg-info
 dist
+
+# UV package manager
+.venv/
+uv.lock
