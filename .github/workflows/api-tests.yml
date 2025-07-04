@@ -1,0 +1,73 @@
+name: FastSymApi Tests and Build
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Run tests with pytest
+      run: uv run pytest fastsymapi_tests.py -v
+    
+    - name: Run health check
+      run: |
+        # Start the application in background
+        uv run uvicorn fastsymapi:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+        
+        # Wait for application to start
+        sleep 10
+        
+        # Check health endpoint
+        curl -f http://localhost:8000/health || (echo "Health check failed" && kill $APP_PID && exit 1)
+        
+        # Clean up
+        kill $APP_PID
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.12
+    
+    - name: Install dependencies
+      run: uv sync --dev
+    
+    - name: Build package
+      run: uv build
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/

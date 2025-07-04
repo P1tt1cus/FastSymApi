@@ -18,35 +18,104 @@ Supports the following symbol servers:
 
 ## Setup FastSymApi
 
+### Prerequisites
+
+- Python 3.11 or higher
+- [UV package manager](https://docs.astral.sh/uv/) (recommended) or pip
+
+### Quick Start with UV (Recommended)
+
 Clone the repository
 
-```
+```bash
 git clone https://github.com/P1tt1cus/FastSymApi
+cd FastSymApi
 ```
 
-Install the requirements
+Install UV if you haven't already:
 
-```
-pip install requirements.txt 
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Start the server
+Install dependencies and sync the project:
 
+```bash
+uv sync
 ```
+
+Start the server:
+
+```bash
+# Production mode
+uv run uvicorn fastsymapi:app --host 0.0.0.0 --port 80
+
+# Or use the built-in command
+uv run fastsymapi
+```
+
+Debug Mode:
+
+```bash
+uv run uvicorn fastsymapi:app --reload
+```
+
+### Alternative Setup with pip
+
+Install the requirements:
+
+```bash
+pip install -r requirements.txt 
+```
+
+Start the server:
+
+```bash
 uvicorn fastsymapi:app --host 0.0.0.0 --port 80 
 ```
 
-Debug Mode
+Debug Mode:
 
-```
+```bash
 uvicorn fastsymapi:app --reload 
 ```
 
-## Run Tests 
+## Development
 
+### Run Tests 
+
+With UV:
+```bash
+uv run pytest fastsymapi_tests.py
 ```
+
+With pip:
+```bash
 pytest fastsymapi_tests.py
 ```
+
+### Build Package
+
+With UV:
+```bash
+uv build
+```
+
+With pip:
+```bash
+python -m build
+```
+
+## GitHub Actions
+
+This project includes automated testing and building through GitHub Actions. The workflow:
+
+- **Tests**: Runs on Python 3.11 and 3.12 with pytest
+- **Health Check**: Verifies the API server starts correctly
+- **Build**: Creates distributable packages
+- **Artifacts**: Uploads build artifacts for distribution
+
+The workflow is triggered on pushes to `main` and `develop` branches, and on pull requests to `main`.
 
 ## Configure x64dbg
 
