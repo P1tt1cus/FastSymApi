@@ -9,3 +9,4 @@
 .fapi
 fastsymapi.egg-info
 dist
+test_env/
