@@ -11,7 +11,7 @@ concrete implementations.
 import gzip
 import os
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
@@ -121,9 +121,13 @@ async def get_symbol_api(
 
 
 @sym.get("/symbols")
-def get_symbol_entries(db: Session = Depends(get_db)) -> list:
-    """List all symbol entries in the database."""
-    return jsonable_encoder(db.query(models.SymbolEntry).all())
+def get_symbol_entries(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+    db: Session = Depends(get_db),
+) -> list:
+    """List symbol entries in the database with pagination."""
+    return jsonable_encoder(db.query(models.SymbolEntry).offset(skip).limit(limit).all())
 
 
 def cleanup_stale_downloads() -> None:

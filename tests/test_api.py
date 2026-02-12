@@ -30,6 +30,32 @@ def test_health_check():
     assert response.json() == {"status": "ok"}
 
 
+def test_get_symbol_entries_default_pagination():
+    """Test /symbols returns results with default pagination."""
+    response = client.get("/symbols")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+def test_get_symbol_entries_with_pagination():
+    """Test /symbols respects skip and limit parameters."""
+    response = client.get("/symbols?skip=0&limit=10")
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
+def test_get_symbol_entries_invalid_limit():
+    """Test /symbols rejects limit above maximum."""
+    response = client.get("/symbols?limit=5000")
+    assert response.status_code == 422
+
+
+def test_get_symbol_entries_negative_skip():
+    """Test /symbols rejects negative skip."""
+    response = client.get("/symbols?skip=-1")
+    assert response.status_code == 422
+
+
 @patch("gzip.open")
 @patch("fastsymapi.download.requests.get")
 @patch("fastsymapi.download.crud.modify_pdb_entry")

@@ -7,10 +7,11 @@ from unittest.mock import MagicMock, patch
 from requests.exceptions import RequestException
 
 from fastsymapi.download import (
+    close_requests_session,
     create_or_find_pdb_entry,
-    create_requests_session,
     download_symbol,
     get_file_lock,
+    get_requests_session,
 )
 from fastsymapi.sql_db import models
 
@@ -56,15 +57,28 @@ class TestFileLocking:
         ]
 
 
-class TestRetryLogic:
-    """Test retry logic in requests session."""
+class TestSessionReuse:
+    """Test shared requests session management."""
 
-    def test_create_requests_session(self):
-        """Test that requests session is created with retry strategy."""
-        session = create_requests_session()
+    def test_get_requests_session_returns_session(self):
+        """Test that a session is created with retry adapters."""
+        session = get_requests_session()
         assert session is not None
         assert "http://" in session.adapters
         assert "https://" in session.adapters
+
+    def test_get_requests_session_reuses_instance(self):
+        """Test that the same session is returned on repeated calls."""
+        session1 = get_requests_session()
+        session2 = get_requests_session()
+        assert session1 is session2
+
+    def test_close_requests_session(self):
+        """Test that closing the session allows a new one to be created."""
+        session1 = get_requests_session()
+        close_requests_session()
+        session2 = get_requests_session()
+        assert session1 is not session2
 
 
 class TestHelperFunctions:
@@ -103,7 +117,7 @@ class TestHelperFunctions:
 class TestDownloadSymbol:
     """Test the download_symbol function."""
 
-    @patch("fastsymapi.download.create_requests_session")
+    @patch("fastsymapi.download.get_requests_session")
     @patch("fastsymapi.download.download_and_save_symbol")
     @patch("fastsymapi.download.crud.modify_pdb_entry")
     def test_download_symbol_success(self, mock_modify, mock_download_save, mock_session):
@@ -124,7 +138,7 @@ class TestDownloadSymbol:
         mock_download_save.assert_called_once()
         mock_modify.assert_called()
 
-    @patch("fastsymapi.download.create_requests_session")
+    @patch("fastsymapi.download.get_requests_session")
     @patch("fastsymapi.download.crud.modify_pdb_entry")
     def test_download_symbol_all_servers_fail(self, mock_modify, mock_session):
         """Test when all symbol servers fail."""
@@ -143,7 +157,7 @@ class TestDownloadSymbol:
         assert pdbentry.downloading is False
         mock_modify.assert_called()
 
-    @patch("fastsymapi.download.create_requests_session")
+    @patch("fastsymapi.download.get_requests_session")
     @patch("fastsymapi.download.crud.modify_pdb_entry")
     def test_download_symbol_network_error(self, mock_modify, mock_session):
         """Test network error handling."""
