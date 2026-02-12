@@ -1,11 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# uv
+.venv/
+uv.lock
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Symbol files
 .fsymapi/**
+fastsymapi/symbols/
 *.pdb
 *.dll
 *.pd_
-*.pyc
+
+# Database
 *.db
+
+# IDE
+.vscode/
+.idea/
+
+# Legacy
 .fsa
 .fastsymapi
 .fapi
-fastsymapi.egg-info
-dist
