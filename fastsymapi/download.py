@@ -35,6 +35,9 @@ from fastsymapi.validation import sanitize_path_component, validate_pdb_entry_fi
 _download_locks: dict[str, threading.Lock] = {}
 _locks_lock = threading.Lock()
 
+_shared_session: requests.Session | None = None
+_session_lock = threading.Lock()
+
 
 def get_file_lock(file_path: str) -> threading.Lock:
     """Get or create a lock for a specific file path."""
@@ -44,7 +47,7 @@ def get_file_lock(file_path: str) -> threading.Lock:
         return _download_locks[file_path]
 
 
-def create_requests_session() -> requests.Session:
+def _create_requests_session() -> requests.Session:
     """Create a requests session with retry logic."""
     session = requests.Session()
 
@@ -60,6 +63,24 @@ def create_requests_session() -> requests.Session:
     session.mount("https://", adapter)
 
     return session
+
+
+def get_requests_session() -> requests.Session:
+    """Return a shared requests session, creating one if needed."""
+    global _shared_session
+    with _session_lock:
+        if _shared_session is None:
+            _shared_session = _create_requests_session()
+        return _shared_session
+
+
+def close_requests_session() -> None:
+    """Close the shared requests session."""
+    global _shared_session
+    with _session_lock:
+        if _shared_session is not None:
+            _shared_session.close()
+            _shared_session = None
 
 
 def create_or_find_pdb_entry(
@@ -172,7 +193,7 @@ def download_symbol(pdbentry: models.SymbolEntry, db: Session) -> None:
         crud.modify_pdb_entry(db, pdbentry)
         return
 
-    session = create_requests_session()
+    session = get_requests_session()
     found = False
 
     for sym_url in SYM_URLS:

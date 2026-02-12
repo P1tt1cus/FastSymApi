@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from fastsymapi.download import close_requests_session
 from fastsymapi.logging import logger
 from fastsymapi.routes import cleanup_stale_downloads, sym
 from fastsymapi.sql_db import models
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI):
     cleanup_stale_downloads()
     logger.info("Starting FastSymApi server...")
     yield
+    close_requests_session()
 
 
 def create_app() -> FastAPI:
