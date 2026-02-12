@@ -1,24 +1,29 @@
+"""FastSymApi - FastAPI server for symbol caching and downloading."""
+
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from fastsymapi.sql_db import models
+
 from fastsymapi.logging import logger
+from fastsymapi.routes import cleanup_stale_downloads, sym
+from fastsymapi.sql_db import models
 from fastsymapi.sql_db.database import engine
-from fastsymapi.symbols import sym
 
 
-def create_app():
-    """ Create the application context """
-
-    # Create the database tables
-    models.base.metadata.create_all(bind=engine)
-
-    # instantiate FastAPI
-    app = FastAPI()
-
-    # Symbol API
-    app.include_router(sym)
-
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan handler for startup/shutdown cleanup."""
+    cleanup_stale_downloads()
     logger.info("Starting FastSymApi server...")
+    yield
 
+
+def create_app() -> FastAPI:
+    """Create the FastAPI application instance."""
+    models.Base.metadata.create_all(bind=engine)
+
+    app = FastAPI(lifespan=lifespan)
+    app.include_router(sym)
     return app
 
 
