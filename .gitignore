@@ -11,6 +11,7 @@ uv.lock
 dist/
 build/
 *.egg-info/
+fastsymapi/_version.py
 
 # Symbol files
 .fsymapi/**
