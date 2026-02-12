@@ -1,89 +1,107 @@
 # FastSymApi
 
-The FastSymApi server is a Fast API server designed for debugging and development environments. It allows users to download and cache symbols from Microsoft, Google, and Mozilla symbol servers. Additionally, users can easily add support for other symbol servers.
+A high-performance [FastAPI](https://fastapi.tiangolo.com/) server for downloading, caching, and serving symbol files (PDBs) from multiple symbol servers. Designed for debugging and development environments, it works with tools like x64dbg, WinDbg, and Symchk.
 
-When clients connect to FastSymApi and attempt to download a symbol, the server first checks if the symbol exists within its `./fastsymapi/symbols` cache. If found, the server returns the symbol; otherwise, it responds with a status `404` and proceeds to download the symbol. On subsequent requests, if the symbol is already downloaded and cached, the server returns it, either compressed using GZIP or decompressed based on the presence of the Accept-Encoding: gzip header. GZIP compression reduces bandwidth usage and improves download speed for clients.
+When a client requests a symbol, the server checks its local cache (`./fastsymapi/symbols`). If the symbol is found, it is returned immediately — optionally GZIP-compressed based on the `Accept-Encoding` header. If the symbol is not cached, the server responds with `404` and begins downloading it in the background. On the next request the cached symbol is served.
 
-## Security and Robustness Improvements
+## Features
 
-FastSymApi includes comprehensive security and robustness features:
-
-- **Path Sanitization**: Prevents directory traversal attacks by validating all path components
-- **Input Validation**: Validates all PDB entry fields to prevent injection attacks
-- **File Locking**: Thread-safe file operations prevent race conditions during concurrent downloads
-- **Retry Logic**: Automatic retry with exponential backoff for network requests
-- **Memory Management**: Configurable memory limits for streaming operations
-- **Error Handling**: Comprehensive error logging and graceful failure handling
-- **Configurable Performance**: Environment variables for tuning chunk sizes and retry behavior
+- Automatic symbol caching from multiple symbol servers
+- GZIP compression support for reduced bandwidth
+- Concurrent download support with file locking
+- Retry logic with exponential backoff
+- Configurable performance via environment variables
+- SQLite database for tracking symbol entries
+- Path sanitization and input validation
 
 See [CONFIGURATION.md](CONFIGURATION.md) for detailed configuration options.
 
-FastSymApi has been tested and works with the following tools:
+## Supported Symbol Servers
 
-- x64dbg
-- WinDbg
-- Symchk
+- <http://msdl.microsoft.com/download/symbols> (Microsoft)
+- <http://chromium-browser-symsrv.commondatastorage.googleapis.com> (Google)
+- <http://symbols.mozilla.org> (Mozilla)
+- <http://symbols.mozilla.org/try> (Mozilla Try)
 
-Supports the following symbol servers:
+## Requirements
 
-- <http://msdl.microsoft.com/download/symbols>
-- <http://chromium-browser-symsrv.commondatastorage.googleapis.com>
-- <http://symbols.mozilla.org>
+- Python 3.12 or higher
 
-## Setup FastSymApi
+## Setup
 
-Clone the repository
+Clone the repository:
 
-```
+```bash
 git clone https://github.com/P1tt1cus/FastSymApi
+cd FastSymApi
 ```
 
-Install the requirements
+Install dependencies using [uv](https://docs.astral.sh/uv/) (recommended):
 
-```
-pip install requirements.txt 
-```
-
-Start the server
-
-```
-uvicorn fastsymapi:app --host 0.0.0.0 --port 80 
+```bash
+uv sync
 ```
 
-Debug Mode
+Or using pip:
 
-```
-uvicorn fastsymapi:app --reload 
-```
-
-## Run Tests 
-
-Run the original tests:
-```
-pytest fastsymapi_tests.py
+```bash
+pip install .
 ```
 
-Run comprehensive robustness tests:
-```
-pytest test_symbols_improved.py
+For development (includes pytest, httpx, and ruff):
+
+```bash
+uv sync --extra dev
 ```
 
-Run all tests:
+## Running the Server
+
+Start the server:
+
+```bash
+uvicorn fastsymapi:app --host 0.0.0.0 --port 80
 ```
+
+Development mode with auto-reload:
+
+```bash
+uvicorn fastsymapi:app --reload
+```
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/{pdbname}/{guid}/{pdbfile}` | Retrieve a symbol file |
+| `GET` | `/download/symbols/{pdbname}/{guid}/{pdbfile}` | Alternate symbol retrieval path |
+| `GET` | `/symbols` | List all tracked symbol entries |
+| `GET` | `/health` | Health check (`{"status": "ok"}`) |
+
+## Running Tests
+
+```bash
 pytest
 ```
 
-## Configure x64dbg
+Verbose output:
 
-**options** >> **preferences** >> **misc**
+```bash
+pytest -v
+```
 
-Symbol store
+## Client Configuration
+
+### x64dbg
+
+**Options** > **Preferences** > **Misc**
+
+Set the symbol store to:
 
 ```
 http://FastSymApiServerIp/
 ```
 
-## Configure WinDbg
+### WinDbg
 
 ```
 .sympath srv*C:\symbols*http://FastSymApiServerIp/
