@@ -30,6 +30,7 @@ from fastsymapi.config import (
 )
 from fastsymapi.logging import logger
 from fastsymapi.sql_db import crud, models
+from fastsymapi.sql_db.database import session_local
 from fastsymapi.validation import sanitize_path_component, validate_pdb_entry_fields
 
 _download_locks: dict[str, threading.Lock] = {}
@@ -183,47 +184,58 @@ def _stream_download(pdbfile_handle, resp: requests.Response, pdb_size: int, pdb
             logger.warning(f"Downloading... {pdbentry.guid} {pdbentry.pdbfile} {percent}%")
 
 
-def download_symbol(pdbentry: models.SymbolEntry, db: Session) -> None:
-    """Iterate over symbol servers looking for the requested PDB file."""
+def download_symbol(pdbentry: models.SymbolEntry, db: Session | None = None) -> None:
+    """Iterate over symbol servers looking for the requested PDB file.
+
+    Runs on a background thread and may outlive the request-scoped session it
+    was scheduled from, so it commits through its own session; the caller's
+    session is only used when passed explicitly (e.g. tests).
+    """
+    own_session = session_local() if db is None else None
     try:
-        validate_pdb_entry_fields(pdbentry.pdbname, pdbentry.guid, pdbentry.pdbfile)
-    except ValueError as e:
-        logger.error(f"Invalid PDB entry fields: {e}")
-        pdbentry.downloading = False
-        crud.modify_pdb_entry(db, pdbentry)
-        return
-
-    session = get_requests_session()
-    found = False
-
-    for sym_url in SYM_URLS:
+        session = db if db is not None else own_session
         try:
-            symbol_url = f"{sym_url}/{quote(pdbentry.pdbname)}/{quote(pdbentry.guid)}/{quote(pdbentry.pdbfile)}"
+            validate_pdb_entry_fields(pdbentry.pdbname, pdbentry.guid, pdbentry.pdbfile)
+        except ValueError as e:
+            logger.error(f"Invalid PDB entry fields: {e}")
+            pdbentry.downloading = False
+            crud.modify_pdb_entry(session, pdbentry)
+            return
 
-            logger.debug(f"Trying to download from: {symbol_url}")
-            resp = session.get(symbol_url, stream=True, timeout=30)
+        requests_session = get_requests_session()
+        found = False
 
-            if resp.status_code == 200:
-                pdbentry.found = True
-                download_and_save_symbol(pdbentry, resp, db)
-                found = True
-                break
-            else:
-                logger.debug(f"Could not find symbol: {symbol_url} {resp.status_code}")
+        for sym_url in SYM_URLS:
+            try:
+                symbol_url = f"{sym_url}/{quote(pdbentry.pdbname)}/{quote(pdbentry.guid)}/{quote(pdbentry.pdbfile)}"
 
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"Network error while downloading from {sym_url}: {e}")
-            continue
-        except Exception as e:
-            logger.error(f"Unexpected error while downloading from {sym_url}: {e}")
-            continue
+                logger.debug(f"Trying to download from: {symbol_url}")
+                resp = requests_session.get(symbol_url, stream=True, timeout=30)
 
-    if not found:
-        logger.error(
-            f"Failed to download symbol {pdbentry.pdbname}/{pdbentry.guid}/{pdbentry.pdbfile} "
-            f"from all available servers"
-        )
-        pdbentry.found = False
+                if resp.status_code == 200:
+                    pdbentry.found = True
+                    download_and_save_symbol(pdbentry, resp, session)
+                    found = True
+                    break
+                else:
+                    logger.debug(f"Could not find symbol: {symbol_url} {resp.status_code}")
 
-    pdbentry.downloading = False
-    crud.modify_pdb_entry(db, pdbentry)
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"Network error while downloading from {sym_url}: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Unexpected error while downloading from {sym_url}: {e}")
+                continue
+
+        if not found:
+            logger.error(
+                f"Failed to download symbol {pdbentry.pdbname}/{pdbentry.guid}/{pdbentry.pdbfile} "
+                f"from all available servers"
+            )
+            pdbentry.found = False
+
+        pdbentry.downloading = False
+        crud.modify_pdb_entry(session, pdbentry)
+    finally:
+        if own_session is not None:
+            own_session.close()
